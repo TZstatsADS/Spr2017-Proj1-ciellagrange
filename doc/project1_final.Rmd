@@ -1,0 +1,260 @@
+---
+title: "Topic & Sentimental Analysis in Inaugural Address"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+<br>
+<br>
+
+In this project, I analyzed the frequencies of each president mentioning some main topics *( economy, employment, education, national security, geopolitics, production )* and investigated the cooccurence of these topics. I also conducted a sentimental analysis for each president using Wordstat sentimental dictionary. Finally, I used these dimensional vectors *( frequencies of 6 topics and different emotions )* of presidents in the k-mean clustering and got an interesting result. I have also conducted a similarity analysis on Trump's speech & Hillary's speech versus some recent presidents. 
+
+<br>
+<br>
+
+*****
+##Step 1: Install libraries and import data
+
+```{r, message=FALSE, warning=FALSE}
+packages.used=c("quanteda","igraph","devtools", "factoextra","RColorBrewer")
+
+# check packages that need to be installed.
+packages.needed=setdiff(packages.used,intersect(installed.packages()[,1],packages.used))
+
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE,
+                   repos='http://cran.us.r-project.org')
+}
+
+#for install a library from GitHub
+library(devtools)
+
+#readtext is not listed in CRAN yet
+if (!is.element("readtext",installed.packages()[,1])){
+    devtools::install_github("kbenoit/readtext") 
+  }
+
+#load the libraries
+library(readtext)
+library(igraph)
+library(quanteda)
+library(factoextra)
+library(RColorBrewer)
+
+#the author of quanteda made a database of all the inaugural address
+load("~/GitHub/Spr2017-Proj1-ciellagrange/data/data_char_inaugural.RData")
+
+# build the corpus for all presidential speech
+str(data_char_inaugural)  
+presi<-corpus(data_char_inaugural)
+
+#add some features to the corpus
+docvars(presi, "Year") <- as.integer(substring(names(data_char_inaugural), 1, 4))
+docvars(presi, "President") <- substring(names(data_char_inaugural), 6)
+
+#load the Hillary nomination speech for comparison
+hillary<-corpus(readtext("~/GitHub/Spr2017-Proj1-ciellagrange/data/2016-Hillary.txt"))
+docnames(hillary)<-"2016-Hillary"
+docvars(hillary,"Year")<-2016
+docvars(hillary,"President")<-"Hillary"
+
+#make a complete corpus including Hillary
+myCorpus <- presi+hillary  
+summary(corpus_subset(myCorpus,Year>1980))
+```
+
+<br>
+Now we have built a library consists of all the presidents' inaugural addresses and we have also included Hillary Clinton's nomination speech for further comparison.
+<br>
+
+*****
+
+##Step 2: Generate wordcloud
+
+<br>
+We first take a look at the general wordcloud of all the presidents' speech.
+```{r,warning=FALSE}
+mydfm <- dfm(presi,remove = c("will", stopwords("english")), 
+             removePunct = TRUE)
+textplot_wordcloud(mydfm,max.words = 100,colors = brewer.pal(6, "Dark2"), scale = c(4, .5))
+```
+
+<br>
+It doesn't give us too much information about their plans because every president would say the same words on their inaugural speeches. So we use the TF-IDF method to control the weight of those common words and take a further look.
+<br>
+
+```{r,warning=FALSE}
+mydfm1<-tfidf(mydfm)
+textplot_wordcloud(mydfm1,max.words = 100,colors = brewer.pal(6, "Dark2"), scale = c(2, .5))
+
+```
+
+
+*****
+
+##Step 3: Import and define dictionary
+
+<br>
+I have tried using the topic models for investigating the popular topics in the speech, but the result is too general--most of them are about the nation and American spirits. Thus I tried to define my own dictionary using the most common 1000 words extracted from president speeches after 1920.
+<br>
+
+```{r}
+mydfm2 <- dfm(corpus_subset(presi,Year>1920),remove = c("will", stopwords("english")), 
+             removePunct = TRUE,stem=TRUE)
+x<-topfeatures(mydfm2, 1000)
+write.csv(x,file="~/GitHub/Spr2017-Proj1-ciellagrange/lib/dic.csv")
+```
+
+<br>
+Here I have manually picked 6 topics(economy, employment, national security, production, geopolitics, education) that I'm interested in and also some popular words under these topics.
+<br>
+
+I made a self-defined dictionary as follows:
+```{r}
+economy = c("business", "grow*","pay","poverty","price","finance","bank*", "economy","economics","debt","capital","enterprise","expenditure","income","tax*","tariff","market")
+employment=c("jobs","work*","employ*","unemploy*","labor")
+security=c("crime","safe*","danger","military","war","weapon","violence","army","navy","defend","terroris*", "threat*","attack")
+production=c("build","factory","housing","land","industry","manufacture","property","infrastructure")
+geopolitics=c("friend*","enemy","hostile","abroad","foreign","domestic","alliance","europe","immigrat*")
+education=c("educat*","school","student")
+
+d<-list(economy=economy,employment=employment,security=security,production=production,geopolitics=geopolitics,education=education)
+myDict <- dictionary(d)
+```
+
+<br>
+Also, for sentimental analysis, I have downloaded a widely used dictionary by Loughran & McDonald from https://provalisresearch.com/products/content-analysis-software/wordstat-dictionary/ .
+<br>
+
+```{r}
+#load a sentiment dictionary by Loughran & McDonald used in wordstat
+wordstat<-dictionary(file="~/GitHub/Spr2017-Proj1-ciellagrange/lib/Loughran & McDonald 2014.cat",format="wordstat")
+```
+
+*****
+
+##Step 4: Conduct data analysis by topics and sentiment
+
+<br>
+
+###Step 4.1: Topic analysis
+
+<br>
+Here we summarise the frequencies of presidents mentioning those 6 topics in their speeches.
+```{r}
+#conduct the topic data analysis
+bycat<-dfm(corpus_subset(presi,Year>1920), dictionary = myDict,valuetype = "glob")
+bycatlist<-data.frame(bycat)
+print(bycatlist)
+```
+
+<br>
+Above is the summary of how many times each president mentioned a certain topic. It's interesting because it coincides with the history *(of course!)*.
+<br>
+
+![US Economy Trend](http://www.rgaia.com/wp-content/uploads/2016/04/1.png)
+
+<br>
+Here I have attached a picture showing big economical and political events happened in US history in the past century.Economy was mentioned a lot in 1920s, due to the roaring and great depression. And in 1980s, Reagan talked a lot about economy, coincides with the economical booming during his tenure. Obama talked a lot about economy and employment in 2009, which is related to the 2008 financial crisis.
+<br>
+At the national security side, 1920s, 1940s are World War I & II. 1980s is the Cold War. We can see geopolitics is often mentioned during the cold war period.
+<br>
+
+###Step 4.2: Sentimental analysis
+
+<br>
+We also conducted a sentiment analysis.
+```{r}
+bysent<-dfm(corpus_subset(presi,Year>1920),dictionary = wordstat)
+head(bysent)
+bysentlist<-data.frame(bysent)
+#after inspection we drop the column called "SUPERFLUOUS" because it's empty
+bysentlist<-subset(bysentlist,select=-SUPERFLUOUS)
+```
+
+
+##Step 5: Network graph of topics
+
+<br>
+I want to investigate in the cooccurence of these topics. So I used the correlation matrix of the topic frequency vector. I omitted some negative correlations and weak correlations. I used igraph library to help me generate the network graph.
+```{r}
+
+cormatrix<-cor(bycatlist,y=bycatlist,use="all.obs")
+#remove the weak/negative correlation
+cormatrix[cormatrix<=0.2]<-0
+# build a graph from the above matrix
+g <- graph.adjacency(cormatrix, weighted=TRUE, mode = "undirected")
+ 
+# remove loops
+g <- simplify(g)
+ 
+# set labels and degrees of vertices
+V(g)$label <- V(g)$name
+V(g)$degree <- degree(g)
+ 
+nodesize<-200*colSums(bycatlist)/sum(bycatlist)
+
+set.seed(1111)
+layout1 <- layout.fruchterman.reingold(g)
+
+V(g)$size<-nodesize
+V(g)$color<-c("tomato","gray50","gold","yellowgreen","lightblue","pink")
+V(g)$label.cex <-0.4*V(g)$degree
+V(g)$label.color <- "black"
+V(g)$frame.color <- NA
+egam <- E(g)$weight
+E(g)$color <- rgb(.15, .5, 0.1, egam)
+E(g)$width <- 10*egam
+ # plot the graph in layout1
+ plot(g, layout=layout1)
+```
+
+<br>
+The graph shows that there's strong cooccurence among economy, employment and national security, which does make sense.
+<br>
+
+##Step 6: Similarity analysis
+
+I calculated the cosine similarity of Trump and Hillary with other presidents seperately. For Hillary, the results coincides with the fact that her political plan is kind of similar with Obama.
+```{r}
+presDfm <- dfm(corpus_subset(presi, Year>1980)+hillary, 
+               remove = stopwords("english"),
+               stem = TRUE, removePunct = TRUE)
+trumpSimil <- textstat_simil(presDfm, c("2017-Trump","2016-Hillary"), n = NULL, 
+                             margin = "documents", method = "cosine")
+
+print(dotchart(as.list(trumpSimil)$"2017-Trump", xlab = "Cosine similarity for Trump"))
+print(dotchart(as.list(trumpSimil)$"2016-Hillary", xlab = "Cosine similarity for Hillary"))
+```
+
+##Step 7: k-mean clustering
+
+Here we combine the topic frequency vector and sentimental frequency vector together. In this way, for each president, we get a 14 dimensional vector.
+```{r}
+totalcomb<-dfm(cbind(bycat,bysent))
+head(totalcomb)
+```
+
+We use these vectors to do a k-mean clustering.
+```{r}
+#choose the appropriate k
+
+k <- round(sqrt(ndoc(totalcomb)/2))
+
+clusterk <- kmeans(tf(totalcomb, "prop"), k)
+split(docnames(totalcomb), clusterk$cluster)
+
+totalcomb<-data.frame(totalcomb)
+
+fviz_cluster(clusterk, 
+             stand=F, repel= TRUE,data=totalcomb,
+              xlab="", xaxt="n",
+             show.clust.cent=FALSE)
+```
+<br>
+The result is surpursing and very interesting. 
+Does this mean that Trump is really different from other presidents?
+Maybe the answer is yes.
+
