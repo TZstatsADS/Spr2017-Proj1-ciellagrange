@@ -4,14 +4,14 @@
 ![image](figs/title.jpg)
 
 ### [Project Description](doc/)
-This is the first and only *individual* (as opposed to *team*) this semester. 
+This is the first and only *Yue Gao* (as opposed to *team*) this semester. 
 
 Term: Spring 2017
 
-+ Projec title: Lorem ipsum dolor sit amet
-+ This project is conducted by [your name]
++ Projec title: Topic & Sentimental Analysis in Inaugural Address
++ This project is conducted by [Yue Gao]
 
-+ Project summary: [a short summary] Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
++ Project summary: [a short summary] In this project, I analyzed the frequencies of each president mentioning some main topics ( economy, employment, education, national security, geopolitics, production ) and investigated the cooccurence of these topics. I also conducted a sentimental analysis for each president using Wordstat sentimental dictionary. Finally, I used these dimensional vectors ( frequencies of 6 topics and different emotions ) of presidents in the k-mean clustering and got an interesting result. I have also conducted a similarity analysis on Trump’s speech & Hillary’s speech versus some recent presidents.
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
